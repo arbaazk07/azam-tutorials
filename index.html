@@ -883,8 +883,10 @@
     mobileMenu.classList.remove('open');
   }
 
-  /* ── Generic Formspree submit ── */
-  function handleFormSubmit(formId, endpoint, btnId, msgId) {
+  var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwlwOSVTJ6ABo9l9qycIX2lI8Yukfjzj1rtpV-2iCpY6M3pWwMNSR2Q-5HQUUbXPmQd/exec';
+
+  /* ── Generic form submit: Formspree (email) + Apps Script (sheet) ── */
+  function handleFormSubmit(formId, formspreeEndpoint, btnId, msgId, formType) {
     var form = document.getElementById(formId);
     var btn  = document.getElementById(btnId);
     var msg  = document.getElementById(msgId);
@@ -896,14 +898,24 @@
       msg.className = 'form-msg';
       msg.textContent = '';
 
-      var data = new FormData(form);
+      // Build plain object for Apps Script
+      var fields = {};
+      new FormData(form).forEach(function(val, key) { fields[key] = val; });
+      fields.formType = formType;
 
       try {
-        var res = await fetch(endpoint, {
-          method: 'POST',
-          body: data,
-          headers: { 'Accept': 'application/json' }
-        });
+        // Fire both in parallel
+        var [res] = await Promise.all([
+          fetch(formspreeEndpoint, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'Accept': 'application/json' }
+          }),
+          fetch(SHEETS_URL, {
+            method: 'POST',
+            body: JSON.stringify(fields)
+          })
+        ]);
 
         if (res.ok) {
           msg.className = 'form-msg success';
@@ -928,14 +940,16 @@
     'admissionForm',
     'https://formspree.io/f/xzdkpdro',
     'admissionBtn',
-    'admissionMsg'
+    'admissionMsg',
+    'admission'
   );
 
   handleFormSubmit(
     'contactForm',
     'https://formspree.io/f/mojpajdz',
     'contactBtn',
-    'contactMsg'
+    'contactMsg',
+    'enquiry'
   );
 
   /* ── Scroll reveal ── */
